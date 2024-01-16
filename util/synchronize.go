@@ -16,7 +16,7 @@ import (
 
 func SyncSingleUpload(c *cos.Client, localPath, bucketName, cosPath string, op *UploadOptions) {
 	localPath, cosPath = UploadPathFixed(localPath, cosPath)
-	skip, err := skipUpload(c, op.SnapshotPath, op.SnapshotDb, localPath, cosPath)
+	skip, err := skipUpload(c, op.SnapshotPath, op.SnapshotType, op.SnapshotDb, localPath, cosPath)
 	if err != nil {
 		logger.Errorf("Sync LocalPath:%s, err:%s", localPath, err.Error())
 		return
@@ -29,7 +29,7 @@ func SyncSingleUpload(c *cos.Client, localPath, bucketName, cosPath string, op *
 	}
 }
 
-func skipUpload(c *cos.Client, snapshotPath string, snapshotDb *leveldb.DB, localPath string,
+func skipUpload(c *cos.Client, snapshotPath string, snapshotType string, snapshotDb *leveldb.DB, localPath string,
 	cosPath string) (skip bool, err error) {
 
 	var localPathInfo os.FileInfo
@@ -40,13 +40,31 @@ func skipUpload(c *cos.Client, snapshotPath string, snapshotDb *leveldb.DB, loca
 			return
 		}
 		var info []byte
-		info, err = snapshotDb.Get([]byte(localPath), nil)
-		if err == nil {
-			t, _ := strconv.ParseInt(string(info), 10, 64)
-			if t == localPathInfo.ModTime().Unix() {
+		if snapshotType == "crc64" {
+			info, err = snapshotDb.Get([]byte("crc64:"+localPath), nil)
+			if err == nil {
+				localCrc, _ := CalculateHash(localPath, "crc64")
+				if localCrc == string(info) {
+					return true, nil
+				} else {
+					return false, nil
+				}
+			}
+		} else if snapshotType == "exist" {
+			// 之前上传过
+			_, err = snapshotDb.Get([]byte(localPath), nil)
+			if err == nil {
 				return true, nil
-			} else {
-				return false, nil
+			}
+		} else {
+			info, err = snapshotDb.Get([]byte(localPath), nil)
+			if err == nil {
+				t, _ := strconv.ParseInt(string(info), 10, 64)
+				if t == localPathInfo.ModTime().Unix() {
+					return true, nil
+				} else {
+					return false, nil
+				}
 			}
 		}
 	}
@@ -74,6 +92,7 @@ func skipUpload(c *cos.Client, snapshotPath string, snapshotDb *leveldb.DB, loca
 				// 本地校验通过后，若未记录快照。则添加
 				if snapshotPath != "" {
 					snapshotDb.Put([]byte(localPath), []byte(strconv.FormatInt(localPathInfo.ModTime().Unix(), 10)), nil)
+					snapshotDb.Put([]byte("crc64:"+localPath), []byte(localCrc), nil)
 				}
 				return true, nil
 			} else {
@@ -282,7 +301,7 @@ func SyncMultiDownload(c *cos.Client, bucketName, cosDir, localDir, include, exc
 	// 记录是否是代码添加的路径分隔符
 	isCosAddSeparator := false
 	// cos路径若不以路径分隔符结尾，则添加
-	if !strings.HasSuffix(cosDir, "/") && cosDir != ""{
+	if !strings.HasSuffix(cosDir, "/") && cosDir != "" {
 		isCosAddSeparator = true
 		cosDir += "/"
 	}

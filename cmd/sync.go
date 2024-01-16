@@ -52,10 +52,12 @@ Example:
 		threadNum, _ := cmd.Flags().GetInt("thread-num")
 		metaString, _ := cmd.Flags().GetString("meta")
 		snapshotPath, _ := cmd.Flags().GetString("snapshot-path")
+		snapshotType, _ := cmd.Flags().GetString("snapshot-type")
 		meta, err := util.MetaStringToHeader(metaString)
 		if err != nil {
 			logger.Fatalln("Sync invalid meta, reason: " + err.Error())
 		}
+
 		// args[0]: 源地址
 		// args[1]: 目标地址
 		var snapshotDb *leveldb.DB
@@ -74,6 +76,7 @@ Example:
 				ThreadNum:    threadNum,
 				Meta:         meta,
 				SnapshotPath: snapshotPath,
+				SnapshotType: snapshotType,
 				SnapshotDb:   snapshotDb,
 			}
 			syncUpload(args, recursive, include, exclude, op, snapshotPath)
@@ -129,6 +132,7 @@ func init() {
 		"In addition, coscli does not automatically delete snapshot-path snapshot information, "+
 		"in order to avoid too much snapshot information, when the snapshot information is useless, "+
 		"please clean up your own snapshot-path on your own immediately.")
+	syncCmd.Flags().String("snapshot-type", "", "crc64/mtime/exist")
 }
 
 func syncUpload(args []string, recursive bool, include string, exclude string, op *util.UploadOptions,
@@ -167,7 +171,7 @@ func syncCopy(args []string, recursive bool, include string, exclude string, met
 		// 记录是否是代码添加的路径分隔符
 		isAddSeparator := false
 		// 源路径若不以路径分隔符结尾，则添加
-		if !strings.HasSuffix(cosPath1, "/")  && cosPath1 != ""{
+		if !strings.HasSuffix(cosPath1, "/") && cosPath1 != "" {
 			isAddSeparator = true
 			cosPath1 += "/"
 		}

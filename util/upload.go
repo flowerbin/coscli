@@ -23,6 +23,7 @@ type UploadOptions struct {
 	Meta         Meta
 	SnapshotDb   *leveldb.DB
 	SnapshotPath string
+	SnapshotType string
 }
 
 func UploadPathFixed(localPath string, cosPath string) (string, string) {
@@ -125,6 +126,10 @@ func SingleUpload(c *cos.Client, localPath, bucketName, cosPath string, op *Uplo
 
 	if op.SnapshotPath != "" {
 		op.SnapshotDb.Put([]byte(localPath), []byte(strconv.FormatInt(fileInfo.ModTime().Unix(), 10)), nil)
+		if op.SnapshotType == "crc64" {
+			localCrc, _ := CalculateHash(localPath, "crc64")
+			op.SnapshotDb.Put([]byte("crc64:"+localPath), []byte(localCrc), nil)
+		}
 	}
 }
 

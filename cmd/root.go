@@ -4,10 +4,11 @@ import (
 	_ "coscli/logger"
 	"coscli/util"
 	"fmt"
-	logger "github.com/sirupsen/logrus"
 	"log"
 	"os"
 	"strings"
+
+	logger "github.com/sirupsen/logrus"
 
 	homedir "github.com/mitchellh/go-homedir"
 	"github.com/spf13/cobra"
@@ -27,7 +28,7 @@ var rootCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		_ = cmd.Help()
 	},
-	Version: "v0.19.0-beta",
+	Version: "v0.19.0-xubin",
 }
 
 func Execute() {
